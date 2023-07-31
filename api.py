@@ -1,13 +1,19 @@
+# Considerations: 
+    # The API contains different information from the Manchester United on the season 2022. 
+    # The idea is to get historical information for all the years, and everytime Manchester UTD plays new info will appear. 
+    # I will have many tables and join them on keys. Right now I only crated 1 table, this is the first deliverable .
+
 import requests
 import psycopg2
 import os
 from dotenv import load_dotenv
+from database import create_connection
 
 load_dotenv()  # take environment variables from .env.
 
 # Extract data form the API
-api_url = os.getenv("API_URL")
-querystring = {"league":"39","season":"2022","team":"33"} #It will be nice to let the user choose
+api_url = os.getenv("API_URL") #https://api-football-v1.p.rapidapi.com/v3/teams/statistics
+querystring = {"league":"39","season":"2022","team":"33"} #I am planning to be more dynamic here, let the user choose the team/season/league.
 headers = {
 	"X-RapidAPI-Key": os.getenv("X_RAPIDAPI_KEY"),
 	"X-RapidAPI-Host": os.getenv("X_RAPIDAPI_HOST")
@@ -16,89 +22,83 @@ response = requests.get(api_url, headers=headers, params=querystring)
 data = response.json()
 
 # Extract the relevant data from the response
-league_info = data['response']['league']
-# print(league_info)
-team_info = data['response']['team']
-# print(team_info)
-fixtures = data['response']['fixtures']
-# print(fixtures)
-goals = data['response']['goals']
-# print(goals)
-biggest = data['response']['biggest']
-# print(biggest)
-clean_sheet = data['response']['clean_sheet']
-# print(clean_sheet)
-failed_to_score = data['response']['failed_to_score']
-# print(failed_to_score)
-penalty = data['response']['penalty']
-# print(penalty)
-lineups = data['response']['lineups']
-print(lineups)
-cards = data['response']['cards']
-# print(cards)
-
-# Create a list of dictionaries to represent the data in tabular format
-# In the future will do this automatically with a for probably, I do not want to do it one by one
-table_data = [
-    # League Info
-    {'Key': 'league_id', 'Value': league_info['id']},
-    {'Key': 'league_name', 'Value': league_info['name']},
-    {'Key': 'league_country', 'Value': league_info['country']},
-    {'Key': 'league_season', 'Value': league_info['season']},
-    {'Key': 'team_id', 'Value': team_info['id']},
-    {'Key': 'team_name', 'Value': team_info['name']},
-    # Fixtures
-    {'Key': 'played_home', 'Value': fixtures['played']['home']},
-    {'Key': 'played_away', 'Value': fixtures['played']['away']},
-    {'Key': 'played_total', 'Value': fixtures['played']['total']},
-    {'Key': 'wins_home', 'Value': fixtures['wins']['home']},
-    {'Key': 'wins_away', 'Value': fixtures['wins']['away']},
-    {'Key': 'wins_total', 'Value': fixtures['wins']['total']},
-    {'Key': 'draws_home', 'Value': fixtures['draws']['home']},
-    {'Key': 'draws_away', 'Value': fixtures['draws']['away']},
-    {'Key': 'draws_total', 'Value': fixtures['draws']['total']},
-    {'Key': 'loses_home', 'Value': fixtures['loses']['home']},
-    {'Key': 'loses_away', 'Value': fixtures['loses']['away']},
-    {'Key': 'loses_total', 'Value': fixtures['loses']['total']},
-    # Goals
-    {'Key': 'goals_home', 'Value': goals['for']['total']['home']},
-    {'Key': 'goals_away', 'Value': goals['for']['total']['away']},
-    {'Key': 'goals_total', 'Value': goals['for']['total']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['0-15']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['16-30']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['31-45']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['46-60']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['61-75']['total']},
-    {'Key': 'goals_total', 'Value': goals['for']['minute']['76-90']['total']},
-]
-# print(table_data)
-
-# Create a DataFrame using pandas
-# df = pandas.DataFrame(table_data)
-
-# Print the DataFrame
-# print(df)
-
-# Redshift connection details
-redshift_config = {
-    'dbname': os.getenv('DB_NAME'),
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD'),
-    'host': os.getenv('DB_HOST'),
-    'port': os.getenv('DB_PORT'),
+data_extracted = {
+    'parameters': data['parameters'],
+    'league_info': data['response']['league'],
+    'team_info': data['response']['team'],
+    'fixtures': data['response']['fixtures'],
+    'goals': data['response']['goals'],
+    'biggest': data['response']['biggest'],
+    'clean_sheet': data['response']['clean_sheet'],
+    'failed_to_score': data['response']['failed_to_score'],
+    'penalty': data['response']['penalty'],
+    'lineups': data['response']['lineups'],
+    'cards': data['response']['cards'],
 }
 
+# Returns the list of dictionaries with 'Key' and 'Value' pairs for the dictionary
+def create_list_of_dicts(data):
+    if isinstance(data, dict):
+        return [{'Key': key, 'Value': value} for key, value in data.items()]
+    elif isinstance(data, list):
+        result = []
+        for item in data:
+            for key, value in item.items():
+                result.append({'Key': key, 'Value': value})
+        return result
+    else:
+        return []
+
+# Prepareing all the Lists so we can insert keys and values into columns in a table
+parameters_list = create_list_of_dicts(data_extracted['parameters'])
+print("\nParameter List:")
+print(parameters_list)
+
+league_info_list = create_list_of_dicts(data_extracted['league_info'])
+print("\nLeague Info List: ")
+print(league_info_list)
+
+team_info_list = create_list_of_dicts(data_extracted['team_info'])
+print("\nTeam Info List: ")
+print(team_info_list)
+
+fixtures_list = create_list_of_dicts(data_extracted['fixtures'])
+print("\nFixtures List: ")
+print(fixtures_list)
+
+goals_list = create_list_of_dicts(data_extracted['goals'])
+print("\nGoals List: ")
+print(goals_list)
+
+biggest_list = create_list_of_dicts(data_extracted['biggest'])
+print("\nBiggest List: ")
+print(biggest_list)
+
+clean_sheet_list = create_list_of_dicts(data_extracted['clean_sheet'])
+print("\nClean Sheet List: ")
+print(clean_sheet_list)
+
+failed_to_score_list = create_list_of_dicts(data_extracted['failed_to_score'])
+print("\nFailed to Score List: ")
+print(failed_to_score_list)
+
+penalty_list = create_list_of_dicts(data_extracted['penalty'])
+print("\nPenalties: ")
+print(penalty_list)
+
+lineups_list = create_list_of_dicts(data_extracted['lineups'])
+print("\nLineups: ")
+print(lineups_list)
+
+cards_list = create_list_of_dicts(data_extracted['cards'])
+print("\nCards List: ")
+print(cards_list)
+print("\n \n")
+
 # Set up the Redshift connection
-connection = psycopg2.connect(
-    host = redshift_config['host'],
-    dbname = redshift_config['dbname'], 
-    user = redshift_config['user'],
-    password = redshift_config['password'],
-    port = redshift_config['port']
-)
-
+connection = create_connection()
+# Create a cursor to execute SQL queries
 cursor = connection.cursor()
-
 # Create Table in Redshift
 table_name = 'league_info'
 create_table_query = f'''
@@ -112,13 +112,24 @@ CREATE TABLE {table_name} (
 );
 '''
 
-cursor.execute(create_table_query)
+try:
+    # Check if the table exists
+    check_table_query = f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}'"
+    cursor.execute(check_table_query)
+    table_exists = cursor.fetchone()
 
-# Commit the changes
-connection.commit()
+    if table_exists:
+        print("Hey, the table is already created! No need to re-create it.")
+    else:
+        # Execute the create table query
+        cursor.execute(create_table_query)
+        connection.commit()
+        print(f"Table {table_name} created successfully!")
 
-# Close the cursor and connection
-cursor.close()
-connection.close()
+except (Exception, psycopg2.DatabaseError) as error:
+    print('Error:', error)
 
-print("Table created and data inserted successfully.")
+finally:
+    # Close the cursor and connection
+    cursor.close()
+    connection.close()
