@@ -1,8 +1,3 @@
-# Considerations: 
-    # The API contains different information from the Manchester United on the season 2022. 
-    # The idea is to get historical information for all the years, and everytime Manchester UTD plays new info will appear. 
-    # I will have many tables and join them on keys. Right now I only crated 1 table, this is the first deliverable .
-
 import requests
 import psycopg2
 import os
