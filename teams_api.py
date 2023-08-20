@@ -14,7 +14,7 @@ load_dotenv()  # take environment variables from .env.
 
 # Extract data form the API
 api_url = os.getenv("API_URL_LIBERTADORES_TEAM") #https://api-football-v1.p.rapidapi.com/v3/teams/statistics
-querystring = {"season": "2023", "league": "13"} #I am planning to be more dynamic here, let the user choose the team/season/league.
+querystring = {"season": "2023"} #I am planning to be more dynamic here, let the user choose the team/season/league.
 headers = {
 	"X-RapidAPI-Key": os.getenv("X_RAPIDAPI_KEY"),
 	"X-RapidAPI-Host": os.getenv("X_RAPIDAPI_HOST")

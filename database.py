@@ -15,7 +15,6 @@ def create_connection():
         'port': os.getenv('DB_PORT'),
     }
     
-
     # Set up the Redshift connection
     connection = psycopg2.connect(
         host=redshift_config['host'],

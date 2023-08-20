@@ -13,26 +13,31 @@ import pandas
 load_dotenv()  # take environment variables from .env.
 
 # Extract data form the API
-api_url = os.getenv("API_URL_LEAGUES") 
-querystring = {"season": "2023", "id": "13"}
+api_url = os.getenv("API_URL_LEAGUES") #https://api-football-v1.p.rapidapi.com/v3/leagues
+querystring = {"season": "2023"}
 headers = {
 	"X-RapidAPI-Key": os.getenv("X_RAPIDAPI_KEY"),
 	"X-RapidAPI-Host": os.getenv("X_RAPIDAPI_HOST")
 }
 response = requests.get(api_url, headers=headers, params=querystring)
 data = response.json()
-print(data)
 
 rows = []
 for leagues_data in data['response']:
     league_info = leagues_data['league']
     country_info = leagues_data['country']
+    season_info = leagues_data['seasons'][0]
 
     row = {
-        'id': data['parameters']['id'],
+        'id': league_info['id'],
         'name': league_info['name'],
         'type': league_info['type'],
         'country': country_info['name'],
+        'code': country_info['code'],
+        'year': season_info['year'],
+        'start_date': season_info['start'],
+        'end_date': season_info['end'],
+        'current': season_info['current'],
     }
     rows.append(row)
 print(pandas.DataFrame(rows))
@@ -45,13 +50,17 @@ cursor = connection.cursor()
 table_name = 'leagues'
 create_table_query = f'''
 CREATE TABLE IF NOT EXISTS {table_name} (
-    id int PRIMARY KEY,
-    name varchar(255),
-    type varchar(255),
-    country varchar(255)
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    type VARCHAR(255),
+    country VARCHAR(255),
+    code VARCHAR(255),
+    year INT,
+    start_date DATE,
+    end_date DATE,
+    current BOOLEAN
 );
 '''
-
 try:
     # Check if the table exists
     check_table_query = f"SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}'"
@@ -69,11 +78,25 @@ try:
     # Insert data into the table
     if rows:
         insert_query = f'''
-        INSERT INTO {table_name} (id, name, type, country)
-        VALUES %s;
+        INSERT INTO {table_name} (id, name, type, country, code, year, start_date, end_date, current) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         '''
-        values = [(row['id'], row['name'], row['type'], row['country']) for row in rows]
-        cursor.execute(insert_query, values)
+
+        for row in rows:
+
+            values = (
+                row['id'], 
+                row['name'], 
+                row['type'], 
+                row['country'], 
+                row['code'], 
+                row['year'], 
+                row['start_date'], 
+                row['end_date'], 
+                row['current']
+            )
+            cursor.execute(insert_query, values)
+
         connection.commit()
         print(f"{len(rows)} records inserted successfully!")
 
